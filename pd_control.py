@@ -47,7 +47,7 @@ class JointStateSubscriber(Node):
         ####
 
         # target_joint_pos, target_joint_vel
-        return 0, 0
+        return self.target_joint_pos, self.target_joint_vel
 
     def calculate_torque(self, joint_pos, joint_vel, target_joint_pos, target_joint_vel):
         ####
