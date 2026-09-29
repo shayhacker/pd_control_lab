@@ -6,16 +6,19 @@ import numpy as np
 import time
 from collections import deque
 import signal
+import math
 
 JOINT_NAME = "leg_front_l_3"
 ####
 ####
-KP = 0.0  # YOUR KP VALUE
-KD = 0.0  # YOUR KD VALUE
+KP = 2  # YOUR KP VALUE
+KD = 0.1 # YOUR KD VALUE
 ####
 ####
 LOOP_RATE = 200  # Hz
 MAX_TORQUE = 3.0
+
+DELAY_SECONDS = 0.02
 
 
 class JointStateSubscriber(Node):
@@ -39,12 +42,22 @@ class JointStateSubscriber(Node):
         # self.torque_history = deque(maxlen=DELAY)
 
         # Create a timer to run control_loop at the specified frequency
+        
+        self.delay_buffer_size = int(DELAY_SECONDS * LOOP_RATE)
+        self.angle_buffer = deque(maxlen=self.delay_buffer_size)
+        self.velocity_buffer = deque(maxlen=self.delay_buffer_size)
+        
         self.create_timer(1.0 / LOOP_RATE, self.control_loop)
+
 
     def get_target_joint_info(self):
         ####
         #### YOUR CODE HERE
         ####
+
+        current_time = time.time()
+        self.target_joint_pos = math.sin(current_time * 5)
+        self.target_joint_vel = 0.0cle
 
         # target_joint_pos, target_joint_vel
         return self.target_joint_pos, self.target_joint_vel
@@ -54,7 +67,7 @@ class JointStateSubscriber(Node):
         #### YOUR CODE HERE
         ####
         
-        return 0.0
+        return KP * (target_joint_pos - joint_pos) + KD * (target_joint_vel - joint_vel)
 
     def print_info(self):
         """Print joint information every 2 control loops"""
@@ -66,7 +79,8 @@ class JointStateSubscriber(Node):
         self.print_counter %= 2
 
     def get_joint_info(self, msg):
-        """Callback function to process incoming JointState messages"""
+        """Call
+        ck function to process incoming JointState messages"""
         joint_index = msg.name.index(JOINT_NAME)
         joint_pos = msg.position[joint_index]
         joint_vel = msg.velocity[joint_index]
@@ -79,8 +93,14 @@ class JointStateSubscriber(Node):
     def control_loop(self):
         """Control control loop to calculate and publish torque commands"""
         self.target_joint_pos, self.target_joint_vel = self.get_target_joint_info()
+        
+        self.angle_buffer.append(self.joint_pos)
+        self.velocity_buffer.append(self.joint_vel)
+        joint_pos = self.angle_buffer[0]
+        joint_vel = self.velocity_buffer[0]
+        
         self.calculated_torque = self.calculate_torque(
-            self.joint_pos, self.joint_vel, self.target_joint_pos, self.target_joint_vel
+            joint_pos, joint_vel, self.target_joint_pos, self.target_joint_vel
         )
         self.print_info()
         self.publish_torque(self.calculated_torque)
